@@ -1,8 +1,8 @@
 package task.stepdef;
 
+import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
-import cucumber.api.java.en.When;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import task.CreateTaskRequest;
@@ -10,7 +10,8 @@ import task.GetTaskListResponse;
 import task.TaskResponse;
 
 import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.useRelaxedHTTPSValidation;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 public class StepDefs {
     private static final String BEARER = "Bearer ";
@@ -27,11 +28,11 @@ public class StepDefs {
     private GetTaskListResponse taskList;
     private String taskListId;
     private TaskResponse task;
+    private Response apiResponse;
 
 
-    @Given("^TestingGetTaskList")
+    @Given("^I am validation HTTP response for get task list$")
     public void testingGetTaskList() {
-        useRelaxedHTTPSValidation();
         Response response = given()
                 .header("Authorization", BEARER + ACCESS_TOKEN)
 //                .log().all()
@@ -49,7 +50,7 @@ public class StepDefs {
     }
 
 
-    @When("CreateTask")
+    @And("I am creating task list on the app$")
     public void createTask() {
         CreateTaskRequest newTask = new CreateTaskRequest();
         newTask.setTitle("Test Task 1");
@@ -67,7 +68,7 @@ public class StepDefs {
 
     }
 
-    @Then("^MovingTask")
+    @Then("^I am moving created task list$")
     public void moveTask() {
         Response response = given()
                 .header("Authorization", BEARER + ACCESS_TOKEN)
@@ -80,4 +81,33 @@ public class StepDefs {
                 .andReturn();
         response.body().as(TaskResponse.class);
     }
+
+    @Given("^I am trying to access api with wrong access token$")
+    public void unAuthToken() {
+
+
+        apiResponse = given()
+                .log().all()
+                .contentType(ContentType.JSON)
+                .header("Authorization", BEARER + ACCESS_TOKEN + "WRONG")
+                .urlEncodingEnabled(false)
+                .when()
+                .get(TASKLIST_GET_API).andReturn();
+                /*
+                .statusCode(401)
+                .body("error.message", is("Invalid Credentials"))
+                .body("error.code", is(401))
+                .body("error.errors[0].domain", is("global"));
+                */
+    }
+
+    @Then("^I get api access error$")
+    public void unAuthResponse() {
+        System.out.println(apiResponse.prettyPrint());
+        assertThat(apiResponse.statusCode(), is(401));
+        assertThat(apiResponse.body().jsonPath().getString("error.message"), is("Invalid Credentials"));
+        assertThat(apiResponse.body().jsonPath().getString("error.errors[0].domain"), is("global"));
+    }
+
+
 }
